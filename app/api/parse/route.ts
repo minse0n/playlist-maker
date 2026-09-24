@@ -1,3 +1,4 @@
+import { requireSession } from "@/lib/auth/requireSession";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { parseLines } from "@/lib/llm/parseTracks";
@@ -8,6 +9,9 @@ import type { ParsedTrack } from "@/lib/types";
 const RequestSchema = z.object({ lines: z.array(z.string().max(MAX_LINE_LENGTH)).max(MAX_LINES) });
 
 export async function POST(req: Request) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await req.json().catch(() => undefined);
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) {

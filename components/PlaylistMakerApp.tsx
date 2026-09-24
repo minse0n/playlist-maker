@@ -6,6 +6,7 @@ import QuotaBanner from "@/components/QuotaBanner";
 import ReviewTable from "@/components/ReviewTable";
 import CreatePlaylistPanel from "@/components/CreatePlaylistPanel";
 import QuickLinkPanel from "@/components/QuickLinkPanel";
+import SignInButton from "@/components/SignInButton";
 import { readNdjson } from "@/lib/ndjson";
 import { classifyScored } from "@/lib/scoring/score";
 import {
@@ -26,6 +27,8 @@ interface AmbiguousItem {
   candidates: ScoredCandidate[];
 }
 
+const SESSION_EXPIRED = "로그인이 만료되었습니다. 페이지를 새로고침해 다시 로그인해 주세요.";
+
 async function parseLinesRemote(lines: string[]): Promise<{
   tracks: ParsedTrack[];
   errors: Array<{ lineIndex: number; error: string }>;
@@ -37,7 +40,7 @@ async function parseLinesRemote(lines: string[]): Promise<{
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `파싱 요청 실패 (${res.status})`);
+    throw new Error(res.status === 401 ? SESSION_EXPIRED : (body.error ?? `파싱 요청 실패 (${res.status})`));
   }
   return res.json();
 }
@@ -50,7 +53,7 @@ async function disambiguateRemote(items: AmbiguousItem[]): Promise<Disambiguatio
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `판별 요청 실패 (${res.status})`);
+    throw new Error(res.status === 401 ? SESSION_EXPIRED : (body.error ?? `판별 요청 실패 (${res.status})`));
   }
   return res.json();
 }
@@ -94,7 +97,7 @@ export default function PlaylistMakerApp() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? `검색 요청 실패 (${res.status})`);
+        throw new Error(res.status === 401 ? SESSION_EXPIRED : (body.error ?? `검색 요청 실패 (${res.status})`));
       }
 
       await readNdjson<SearchProgressEvent>(res, (event) => {
@@ -202,11 +205,14 @@ export default function PlaylistMakerApp() {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-6">
-      <header>
-        <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">플레이리스트 메이커</h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          노래 목록을 붙여넣으면 유튜브에서 가장 정확한 영상을 찾아 재생목록을 만들어 드려요.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">플레이리스트 메이커</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400">
+            노래 목록을 붙여넣으면 유튜브에서 가장 정확한 영상을 찾아 재생목록을 만들어 드려요.
+          </p>
+        </div>
+        <SignInButton />
       </header>
 
       <QuotaBanner

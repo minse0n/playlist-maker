@@ -66,7 +66,7 @@ cp .env.example .env
 openssl rand -base64 32     # 출력값을 AUTH_SECRET에 붙여넣기
 ```
 
-`.env`를 채우세요. **`.env`는 절대 커밋하지 마세요** (git에서 제외되어 있습니다). `.env.example`에는 항상 빈 값(placeholder)만 있어야 합니다.
+`.env`를 채우세요 (`ALLOWED_EMAILS`에 로그인을 허용할 Google 계정을 쉼표로 적으면 그 계정만 로그인할 수 있습니다). **`.env`는 절대 커밋하지 마세요** (git에서 제외되어 있습니다). `.env.example`에는 항상 빈 값(placeholder)만 있어야 합니다.
 
 ### 4. 실행
 
@@ -76,7 +76,7 @@ npm run dev        # http://localhost:3000 (127.0.0.1에만 바인딩)
 npm test           # 단위 테스트, 네트워크 호출 없음
 ```
 
-매칭과 검토는 로그인 없이 되고, 재생목록을 실제로 만들 때만 Google 로그인이 필요합니다.
+먼저 Google로 로그인해야 하며, 앱 전체와 모든 API 라우트가 로그인 뒤에 있습니다.
 
 ## YouTube 할당량
 
@@ -94,6 +94,7 @@ npm test           # 단위 테스트, 네트워크 호출 없음
 |---|---|
 | `MissingSecret` / "서버 구성 문제" | `.env`에 `AUTH_SECRET`이 없습니다. `.env` 수정 후 `npm run dev`를 재시작하세요. |
 | Google 로그인 시 `403 access_denied` | OAuth 동의 화면의 Test users에 본인 계정을 추가하세요. |
+| Google 로그인은 됐는데 다시 로그인 화면으로 돌아옴 | 이메일이 `ALLOWED_EMAILS`에 없습니다. |
 | `LLM_API_KEY is not set` | `.env`를 채우고 재시작하세요. |
 | LLM `404 model_not_found` | `LLM_DEFAULT_MODEL`이 틀렸습니다. 위의 `/models` 호출로 확인하세요. |
 | LLM `429` / `5xx` | 제공자 한도/과부하입니다. 앱이 자동 재시도하며, 계속되면 잠시 후 다시 시도하세요. |
@@ -102,7 +103,8 @@ npm test           # 단위 테스트, 네트워크 호출 없음
 ## 보안 참고 사항
 
 - **비밀 값은 서버에만 있습니다.** API 키는 라우트 핸들러에서만 읽습니다. Google OAuth 토큰은 암호화된 HttpOnly 세션 쿠키 안에만 있으며, 브라우저에 내려가는 세션 객체에는 **의도적으로 포함하지 않습니다**.
-- **API 라우트에는 인증이 없습니다** (`/api/parse`, `/api/search`, `/api/disambiguate`). 로컬 단일 사용자용으로 설계했기 때문입니다. 서버에 접근할 수 있는 누구나 *내* LLM/YouTube 할당량을 쓸 수 있으므로 `dev`/`start`는 `127.0.0.1`에만 바인딩합니다. **공개 배포한다면 먼저 인증을 앞에 두세요.**
+- **로그인이 먼저입니다.** 로그인 전에는 Google 로그인 화면만 보이고, 모든 API 라우트(`/api/parse`, `/api/search`, `/api/disambiguate`, `/api/quota/*`, `/api/playlist/*`)는 유효한 세션이 없으면 `401`을 반환하므로, 낯선 사람이 *내* LLM/YouTube 할당량을 쓸 수 없습니다.
+- **로그인할 수 있는 사람을 제한하세요.** 기본적으로는 OAuth를 통과한 모든 Google 계정이 로그인할 수 있습니다. 로컬 이외의 용도라면 `ALLOWED_EMAILS=you@gmail.com`(쉼표로 구분)을 설정해 해당 계정만 허용하세요. `dev`/`start`도 `127.0.0.1`에만 바인딩됩니다.
 - 요청 본문은 크기 제한과 함께 Zod로 검증합니다 (최대 200줄, 줄당 300자, YouTube 영상 ID는 `[A-Za-z0-9_-]{11}` 형식). LLM이 고른 영상 ID는 제시된 후보 안에 있을 때만 받아들입니다.
 - 포크를 푸시하기 전에 `git ls-files`에 `.env`가 없는지, `.env.example`이 빈 값인지 확인하세요. 키가 한 번이라도 유출됐다면 폐기(revoke)하고 재발급하세요.
 - 취약점을 발견하면 공개 이슈 대신 GitHub의 비공개 보안 권고(private security advisory)로 알려 주세요.

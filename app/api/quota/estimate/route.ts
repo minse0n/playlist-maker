@@ -1,9 +1,13 @@
+import { requireSession } from "@/lib/auth/requireSession";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { getQuotaEstimate } from "@/lib/cache/quota";
 import { SEARCH_MAX_RESULTS, VIDEOS_LIST_BATCH_SIZE, YOUTUBE_QUOTA } from "@/lib/constants";
 
 export async function GET() {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   return NextResponse.json(getQuotaEstimate());
 }
 
@@ -13,6 +17,9 @@ const RequestSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await req.json().catch(() => ({}));
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) {

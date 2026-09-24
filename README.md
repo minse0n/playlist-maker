@@ -66,7 +66,7 @@ cp .env.example .env
 openssl rand -base64 32     # paste the result as AUTH_SECRET
 ```
 
-Fill in `.env`. **Never commit `.env`** (it is git-ignored). `.env.example` must only ever contain placeholders.
+Fill in `.env` (optionally set `ALLOWED_EMAILS` to a comma-separated list of Google accounts allowed to sign in). **Never commit `.env`** (it is git-ignored). `.env.example` must only ever contain placeholders.
 
 ### 4. Run
 
@@ -76,7 +76,7 @@ npm run dev        # http://localhost:3000 (bound to 127.0.0.1 only)
 npm test           # unit tests, no network calls
 ```
 
-Matching and review work without signing in; Google sign-in is only needed to create the playlist.
+You sign in with Google first; the whole app (and every API route) is behind that login.
 
 ## YouTube quota
 
@@ -94,6 +94,7 @@ The default quota is 10,000 units/day: `search.list` = 100, `playlists.insert` =
 |---|---|
 | `MissingSecret` / "problem with the server configuration" | `AUTH_SECRET` missing in `.env`. Restart `npm run dev` after editing `.env`. |
 | `403 access_denied` at Google sign-in | Add your account as a Test user on the OAuth consent screen. |
+| Signed in with Google but sent back to the login screen | Your email is not in `ALLOWED_EMAILS`. |
 | `LLM_API_KEY is not set` | Fill in `.env` and restart. |
 | LLM `404 model_not_found` | Wrong `LLM_DEFAULT_MODEL`; list models with the `/models` call above. |
 | LLM `429` / `5xx` | Provider limit or overload; the app retries automatically, then try again later. |
@@ -102,7 +103,8 @@ The default quota is 10,000 units/day: `search.list` = 100, `playlists.insert` =
 ## Security notes
 
 - **Secrets stay server-side.** API keys are only read in route handlers. Google OAuth tokens live in the encrypted, HttpOnly session cookie and are deliberately **not** included in the session object served to the browser.
-- **The API routes are not authenticated** (`/api/parse`, `/api/search`, `/api/disambiguate`) because the app is designed for local single-user use. Anyone who can reach the server can spend *your* LLM and YouTube quota. That is why `dev`/`start` bind to `127.0.0.1`. **If you deploy this publicly, put it behind authentication first.**
+- **Login comes first.** The page shows only a Google sign-in screen until you are signed in, and every API route (`/api/parse`, `/api/search`, `/api/disambiguate`, `/api/quota/*`, `/api/playlist/*`) returns `401` without a valid session, so strangers cannot spend *your* LLM and YouTube quota.
+- **Restrict who may sign in.** By default any Google account that completes OAuth can sign in. For anything other than local use, set `ALLOWED_EMAILS=you@gmail.com` (comma-separated) so only those accounts are accepted. `dev`/`start` also bind to `127.0.0.1` only.
 - Request bodies are validated with Zod with size limits (max 200 lines, 300 chars each, YouTube video IDs must match `[A-Za-z0-9_-]{11}`), and LLM-chosen video IDs are accepted only if they were among the offered candidates.
 - Before pushing a fork, check that `git ls-files` contains no `.env` and that `.env.example` has empty values. If a key ever leaked, revoke and rotate it.
 - Found a vulnerability? Please open a private security advisory on GitHub rather than a public issue.

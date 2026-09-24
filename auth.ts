@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { isEmailAllowed } from "@/lib/auth/allowlist";
 
 const YOUTUBE_SCOPE = "openid email profile https://www.googleapis.com/auth/youtube";
 
@@ -22,6 +23,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
+    async signIn({ profile }) {
+      if (profile?.email_verified === false) return false;
+      return isEmailAllowed(profile?.email, process.env.ALLOWED_EMAILS);
+    },
     async jwt({ token, account }) {
       if (account) {
         token.accessToken = account.access_token;

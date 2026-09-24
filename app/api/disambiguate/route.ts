@@ -1,3 +1,4 @@
+import { requireSession } from "@/lib/auth/requireSession";
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { disambiguateBatch } from "@/lib/llm/disambiguate";
@@ -29,6 +30,9 @@ const RequestSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const denied = await requireSession();
+  if (denied) return denied;
+
   const body = await req.json().catch(() => undefined);
   const parsed = RequestSchema.safeParse(body);
   if (!parsed.success) {
